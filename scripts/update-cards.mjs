@@ -4,7 +4,7 @@ import readline from 'node:readline';
 import { writeFile, readFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { isEligibleCardPrinting, canonicalSetForCard, recordOracleCandidate, resolveOracleCandidates } from './card-eligibility.mjs';
+import { isEligibleCardPrinting, canonicalSetForCard, recordOracleCandidate, resolveOracleCandidates, recordEarliestMechanicalPrinting, recordSetReprintSignal, setsIntroducingNewOracleCards } from './card-eligibility.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dataDir = path.join(root, 'data');
@@ -14,7 +14,7 @@ const metaPath = path.join(publicDir, 'card-data-meta.json');
 const indexPath = path.join(publicDir, 'card-index.json');
 const setIndexPath = path.join(publicDir, 'set-index.json');
 
-const USER_AGENT = 'ManaMatch/2.4 (self-hosted MTG guessing game)';
+const USER_AGENT = 'ManaMatch/2.5 (self-hosted MTG guessing game)';
 const ACCEPT = 'application/json;q=0.9,*/*;q=0.8';
 const BULK_URL = 'https://api.scryfall.com/bulk-data';
 const SETS_URL = 'https://api.scryfall.com/sets';
@@ -154,24 +154,50 @@ if (!downloadUri) throw new Error('Scryfall default_cards dataset did not includ
 
 console.log(`Downloading ${defaultCards.name || 'Default Cards'}…`);
 const bulk = await readBulk(downloadUri);
-// Secret Lair needs one additional cross-printing rule: ordinary SLD
-// reprints should not make SLD a first-set answer. Keep two streaming
-// candidates per Oracle ID. A non-SLD printing always wins when one exists;
-// an SLD printing is retained only when that Oracle card has no eligible
-// non-SLD printing anywhere in Scryfall. This keeps mechanically unique SLD
-// cards (for example a card currently printed only in SLD) while dropping
-// normal Secret Lair reprints/reskins from the SLD answer pool.
-const earliestNonSecretByOracle = new Map();
-const earliestSecretOnlyByOracle = new Map();
+// First determine which products genuinely introduced at least one Oracle card
+// to paper Magic. This pass intentionally looks beyond ManaMatch's set filters:
+// an earlier printing in a hidden product still proves that a later product is
+// a reprint. That keeps all-reprint products (for example SLZ / The Zeta Set)
+// from resurfacing merely because an older source set was filtered out.
+//
+// We keep compact candidate snapshots for printings that pass ManaMatch's
+// normal rules, then apply the set-level novelty check after the full history
+// has been seen. This avoids a second bulk-data download.
+const earliestMechanicalByOracle = new Map();
+const reprintSignalBySet = new Map();
+const eligibleCandidates = [];
+const eligibleSetCodes = new Set();
 let scanned = 0;
 let acceptedPrintings = 0;
 
+function candidateSnapshot(card) {
+  return {
+    object: card.object,
+    oracle_id: card.oracle_id,
+    name: card.name,
+    cmc: card.cmc,
+    color_identity: card.color_identity,
+    rarity: card.rarity,
+    type_line: card.type_line,
+    set: card.set,
+    set_name: card.set_name,
+    set_type: card.set_type,
+    released_at: card.released_at,
+    image_uris: card.image_uris?.normal ? { normal: card.image_uris.normal } : null,
+    card_faces: card.card_faces?.map((face) => face?.image_uris?.normal ? { image_uris: { normal: face.image_uris.normal } } : {}) || null,
+    scryfall_uri: card.scryfall_uri
+  };
+}
+
 function considerPrinting(card) {
   scanned += 1;
+  recordEarliestMechanicalPrinting(card, earliestMechanicalByOracle);
+  recordSetReprintSignal(card, reprintSignalBySet);
+
   if (!isEligibleCardPrinting(card, setMetaByCode)) return;
   acceptedPrintings += 1;
-
-  recordOracleCandidate(card, earliestNonSecretByOracle, earliestSecretOnlyByOracle);
+  eligibleSetCodes.add(String(card.set).toUpperCase());
+  eligibleCandidates.push(candidateSnapshot(card));
 }
 
 if (bulk.kind === 'jsonl') {
@@ -179,6 +205,25 @@ if (bulk.kind === 'jsonl') {
 } else {
   const bulkCards = await bulk.response.json();
   for (const card of bulkCards) considerPrinting(card);
+}
+
+const setsWithNewOracleCards = setsIntroducingNewOracleCards(earliestMechanicalByOracle, reprintSignalBySet);
+const reprintOnlyEligibleSetCodes = [...eligibleSetCodes]
+  .filter((code) => !setsWithNewOracleCards.has(code))
+  .sort();
+
+// Secret Lair still gets its card-by-card rule: a non-SLD eligible printing
+// always wins when one exists; an SLD card is retained only when its Oracle
+// identity has no eligible non-SLD printing. Because SLD contains genuinely
+// new cards, the set itself remains available while normal SLD reprints do not.
+const earliestNonSecretByOracle = new Map();
+const earliestSecretOnlyByOracle = new Map();
+let acceptedNovelSetPrintings = 0;
+for (const card of eligibleCandidates) {
+  const code = String(card.set).toUpperCase();
+  if (!setsWithNewOracleCards.has(code)) continue;
+  acceptedNovelSetPrintings += 1;
+  recordOracleCandidate(card, earliestNonSecretByOracle, earliestSecretOnlyByOracle);
 }
 
 const { selectedByOracle, secretLairExclusiveCards } = resolveOracleCandidates(
@@ -229,9 +274,12 @@ const meta = {
   generatedAt: new Date().toISOString(),
   scannedPrintings: scanned,
   acceptedPaperPrintings: acceptedPrintings,
+  acceptedPrintingsFromSetsWithNewCards: acceptedNovelSetPrintings,
+  reprintOnlyEligibleSetsSkipped: reprintOnlyEligibleSetCodes.length,
+  reprintOnlyEligibleSetCodes,
   secretLairExclusiveCards,
   uniqueCards: cards.length,
   gameSets: setIndex.length
 };
 await writeFile(metaPath, JSON.stringify(meta, null, 2));
-console.log(`Wrote ${cards.length.toLocaleString()} unique paper cards and ${setIndex.length.toLocaleString()} game sets from ${acceptedPrintings.toLocaleString()} eligible printings (${secretLairExclusiveCards.toLocaleString()} SLD-exclusive Oracle cards).`);
+console.log(`Wrote ${cards.length.toLocaleString()} unique paper cards and ${setIndex.length.toLocaleString()} game sets from ${acceptedNovelSetPrintings.toLocaleString()} printings in sets that introduced new Oracle cards (${reprintOnlyEligibleSetCodes.length.toLocaleString()} reprint-only sets skipped; ${secretLairExclusiveCards.toLocaleString()} SLD-exclusive Oracle cards).`);

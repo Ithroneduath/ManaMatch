@@ -47,8 +47,76 @@ export const EXCLUDED_SET_CODES = new Set([
   'SUNF',  // Unfinity sticker/companion product
   'TUNF',  // Unfinity tokens
   'TWOE',  // Wilds of Eldraine tokens
-  'MB2'    // Mystery Booster 2
+  'MB2',   // Mystery Booster 2
+  'SLZ'    // The Zeta Set (all-reprint; explicit failsafe in addition to automatic detection)
 ]);
+
+
+// A mechanically new set is determined against the broader paper history,
+// before ManaMatch's set-category exclusions are applied. This prevents a
+// reprint-only product from becoming a card's "first eligible" set merely
+// because the card's true earlier printing lived in a product ManaMatch hides.
+// Oracle ID is Scryfall's stable identity for a card's Oracle rules object, so
+// it is the right key for this purpose.
+export function isMechanicalPaperPrinting(card) {
+  return card?.object === 'card'
+    && Boolean(card.oracle_id)
+    && card.digital !== true
+    && Array.isArray(card.games)
+    && card.games.includes('paper')
+    && !EXCLUDED_LAYOUTS.has(card.layout)
+    && !(card.promo_types || []).includes('playtest')
+    && Boolean(card.released_at)
+    && Boolean(card.set);
+}
+
+export function recordEarliestMechanicalPrinting(card, earliestByOracle) {
+  if (!isMechanicalPaperPrinting(card)) return;
+
+  const oracleId = card.oracle_id;
+  const releaseDate = card.released_at;
+  const code = String(card.set).toUpperCase();
+  const current = earliestByOracle.get(oracleId);
+
+  if (!current || releaseDate < current.releaseDate) {
+    earliestByOracle.set(oracleId, { releaseDate, setCodes: new Set([code]) });
+    return;
+  }
+
+  // If two products release on the same day, treat both as possible debut
+  // sets. This avoids arbitrarily declaring one a reprint based on set code.
+  if (releaseDate === current.releaseDate) current.setCodes.add(code);
+}
+
+export function recordSetReprintSignal(card, signalBySet) {
+  if (!isMechanicalPaperPrinting(card) || typeof card.reprint !== 'boolean') return;
+  const code = String(card.set).toUpperCase();
+  const current = signalBySet.get(code) || { hasNewPrinting: false };
+  if (card.reprint === false) current.hasNewPrinting = true;
+  signalBySet.set(code, current);
+}
+
+export function setsIntroducingNewOracleCards(earliestByOracle, reprintSignalBySet = null) {
+  const chronologicalFallback = new Set();
+  for (const entry of earliestByOracle.values()) {
+    for (const code of entry.setCodes) chronologicalFallback.add(code);
+  }
+
+  if (!reprintSignalBySet) return chronologicalFallback;
+
+  // Scryfall exposes a required `reprint` boolean on card objects. When that
+  // signal exists for a set, trust it: the set is novel only if at least one
+  // mechanically relevant paper printing is explicitly not a reprint. Fall
+  // back to Oracle chronology only for data sources that omit the field.
+  const result = new Set();
+  for (const code of chronologicalFallback) {
+    if (!reprintSignalBySet.has(code)) result.add(code);
+  }
+  for (const [code, signal] of reprintSignalBySet) {
+    if (signal.hasNewPrinting) result.add(code);
+  }
+  return result;
+}
 
 export function isPromoPrinting(card) {
   return card?.promo === true || card?.set_type === 'promo';

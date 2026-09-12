@@ -1,4 +1,4 @@
-# ManaMatch v2.4
+# ManaMatch v2.5
 
 ManaMatch is a self-updating daily **Magic: The Gathering** card guessing game designed for Netlify. It recreates the general idea of a card-attribute guessing game without copying EnchantWorldle's code or branding.
 
@@ -35,7 +35,13 @@ The API now includes the guessed card's image URL in the public guess payload. D
 
 
 
-## Version 2.4 set cleanup, Secret Lair uniqueness, and wording
+## Version 2.5 automatic reprint-only set filtering
+
+Version 2.5 adds a general rule for the set-symbol timeline: a set must introduce at least one mechanically new Oracle card to paper Magic in order to be eligible as a ManaMatch source set. The updater uses Scryfall's per-printing `reprint` flag when available and cross-checks Oracle-card history as a fallback. This check happens **before** ManaMatch applies its normal promo/reprint/supplemental filters, so a later all-reprint product cannot resurface merely because the card's true earlier printing came from a product ManaMatch hides.
+
+For example, **The Zeta Set (`SLZ`)** contains only reprints, so it is now excluded automatically; `SLZ` is also retained as an explicit failsafe exclusion for this release. The same automatic rule will apply to future all-reprint products without needing their set codes to be manually added to a blacklist. Mixed sets remain eligible if they introduce at least one new Oracle card. Secret Lair (`SLD`) also remains eligible because it contains mechanically new cards, while the existing card-by-card SLD logic still prevents normal SLD reprints from being treated as first printings.
+
+The generated `card-data-meta.json` now records how many otherwise-eligible reprint-only sets were skipped and lists their set codes, which makes future auditing easier.
 
 This release performs a broader cleanup of the first-printing timeline. The updater now excludes Scryfall set categories that are supplemental/reprint/nonstandard products for ManaMatch purposes: **token, memorabilia, masters, masterpiece, From the Vault, Duel Deck, and Vanguard**. It also excludes the requested historical/special entries such as `MGB`, `TSB`, `HHO`, `E01`, `PHTR`, `PLST`, and `MB2`, plus every `PH##` Heroes of the Realm-style code.
 
@@ -65,11 +71,11 @@ The daily heading now reads **“Guess the Magic: The Gathering Card”**.
 
 1. downloads the current Scryfall `default_cards` bulk data;
 2. downloads Scryfall set metadata;
-3. recalculates the eligible first-printing sets after promo, memorabilia, reprint-product, companion-set, and Secret Lair cleanup;
+3. recalculates the eligible first-printing sets after promo, memorabilia, companion-set, Secret Lair, and **automatic all-reprint-set** cleanup;
 4. takes each set's canonical `icon_svg_uri` from Scryfall (with a predictable Scryfall SVG fallback); and
 5. rewrites `public/set-index.json`, which is what the horizontal set-symbol strip reads.
 
-The browser hides a set until its release date is valid for the puzzle being played. Therefore a newly released normal set will appear automatically after the next successful data-refresh build, assuming Scryfall has added eligible cards and set metadata for it. Promo, memorabilia/front-card, token, masters, masterpiece/bonus-sheet, Duel Deck, From the Vault, Vanguard, and other configured supplemental sets remain intentionally excluded.
+The browser hides a set until its release date is valid for the puzzle being played. Therefore a newly released normal set will appear automatically after the next successful data-refresh build, assuming Scryfall has added eligible cards and set metadata for it **and the set introduces at least one mechanically new Oracle card**. A newly released all-reprint product will be omitted automatically. Promo, memorabilia/front-card, token, masters, masterpiece/bonus-sheet, Duel Deck, From the Vault, Vanguard, and other configured supplemental sets remain intentionally excluded.
 
 With the Build Hook configured in Step 5 below, the included scheduled function triggers this rebuild once per day. Without a Build Hook, new cards and set symbols still update whenever you manually deploy or push a code change.
 

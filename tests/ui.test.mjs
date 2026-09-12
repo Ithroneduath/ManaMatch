@@ -25,9 +25,9 @@ test('header includes WUBRG mana icons in order', () => {
   assert.ok(w >= 0 && w < u && u < b && b < r && r < g);
 });
 
-test('v2.4 uses versioned assets and revalidation', () => {
-  assert.match(html, /styles\.css\?v=2\.4\.0/);
-  assert.match(html, /app\.js\?v=2\.4\.0/);
+test('v2.5 uses versioned assets and revalidation', () => {
+  assert.match(html, /styles\.css\?v=2\.5\.0/);
+  assert.match(html, /app\.js\?v=2\.5\.0/);
   assert.doesNotMatch(toml, /max-age=31536000, immutable/);
   assert.match(toml, /max-age=3600, must-revalidate/);
 });

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { isEligibleCardPrinting, canonicalSetForCard, isHeroesOfTheRealmCode, isRedundantPrefixedCompanion, recordOracleCandidate, resolveOracleCandidates } from '../scripts/card-eligibility.mjs';
+import { isEligibleCardPrinting, canonicalSetForCard, isHeroesOfTheRealmCode, isRedundantPrefixedCompanion, recordOracleCandidate, resolveOracleCandidates, recordEarliestMechanicalPrinting, recordSetReprintSignal, setsIntroducingNewOracleCards } from '../scripts/card-eligibility.mjs';
 
 function baseCard(overrides = {}) {
   return {
@@ -100,7 +100,7 @@ test('reprint/supplemental set categories are excluded automatically', () => {
 });
 
 test('requested special set codes are excluded even if metadata type is otherwise ordinary', () => {
-  const codes = ['MGB','PVAN','TSB','HHO','TSOM','TC15','E01','PHTR','MED','TUND','MUL','PLST','SZNR','STA','TAFR','SUNF','TUNF','TWOE','MB2'];
+  const codes = ['MGB','PVAN','TSB','HHO','TSOM','TC15','E01','PHTR','MED','TUND','MUL','PLST','SZNR','STA','TAFR','SUNF','TUNF','TWOE','MB2','SLZ'];
   for (const code of codes) {
     assert.equal(isEligibleCardPrinting(baseCard({ set: code.toLowerCase(), set_type: 'expansion' })), false, code);
   }
@@ -143,4 +143,133 @@ test('Secret Lair reprints lose to any eligible non-SLD printing, but SLD-exclus
   assert.equal(selectedByOracle.get(oracleA).set, 'lea');
   assert.equal(selectedByOracle.get(oracleB).set, 'sld');
   assert.equal(secretLairExclusiveCards, 1);
+});
+
+
+test('a set with only reprints does not count as introducing new Oracle cards', () => {
+  const history = new Map();
+  const oracleA = '00000000-0000-4000-8000-0000000000c1';
+  const oracleB = '00000000-0000-4000-8000-0000000000c2';
+
+  recordEarliestMechanicalPrinting(baseCard({ oracle_id: oracleA, set: 'lea', released_at: '1993-08-05' }), history);
+  recordEarliestMechanicalPrinting(baseCard({ oracle_id: oracleA, set: 'slz', released_at: '2026-09-02' }), history);
+  recordEarliestMechanicalPrinting(baseCard({ oracle_id: oracleB, set: 'm10', released_at: '2009-07-17' }), history);
+  recordEarliestMechanicalPrinting(baseCard({ oracle_id: oracleB, set: 'slz', released_at: '2026-09-02' }), history);
+
+  const newSets = setsIntroducingNewOracleCards(history);
+  assert.equal(newSets.has('LEA'), true);
+  assert.equal(newSets.has('M10'), true);
+  assert.equal(newSets.has('SLZ'), false);
+});
+
+test('a mixed or mechanically unique set remains when it introduces at least one Oracle card', () => {
+  const history = new Map();
+  const oldOracle = '00000000-0000-4000-8000-0000000000d1';
+  const newOracle = '00000000-0000-4000-8000-0000000000d2';
+
+  recordEarliestMechanicalPrinting(baseCard({ oracle_id: oldOracle, set: 'lea', released_at: '1993-08-05' }), history);
+  recordEarliestMechanicalPrinting(baseCard({ oracle_id: oldOracle, set: 'sld', released_at: '2026-07-27' }), history);
+  recordEarliestMechanicalPrinting(baseCard({ oracle_id: newOracle, set: 'sld', released_at: '2026-07-27' }), history);
+
+  const newSets = setsIntroducingNewOracleCards(history);
+  assert.equal(newSets.has('SLD'), true);
+});
+
+test('same-day first printings do not arbitrarily mark one product as reprint-only', () => {
+  const history = new Map();
+  const oracle = '00000000-0000-4000-8000-0000000000e1';
+  recordEarliestMechanicalPrinting(baseCard({ oracle_id: oracle, set: 'abc', released_at: '2026-10-01' }), history);
+  recordEarliestMechanicalPrinting(baseCard({ oracle_id: oracle, set: 'def', released_at: '2026-10-01' }), history);
+  const newSets = setsIntroducingNewOracleCards(history);
+  assert.equal(newSets.has('ABC'), true);
+  assert.equal(newSets.has('DEF'), true);
+});
+
+
+test('all-reprint sets such as SLZ do not count as introducing a new Oracle card', () => {
+  const history = new Map();
+  const bolt = '00000000-0000-4000-8000-0000000000c1';
+  const ring = '00000000-0000-4000-8000-0000000000c2';
+
+  recordEarliestMechanicalPrinting(baseCard({
+    oracle_id: bolt, set: 'lea', set_name: 'Limited Edition Alpha',
+    set_type: 'core', released_at: '1993-08-05', name: 'Lightning Bolt'
+  }), history);
+  recordEarliestMechanicalPrinting(baseCard({
+    oracle_id: ring, set: 'c13', set_name: 'Commander 2013',
+    set_type: 'commander', released_at: '2013-11-01', name: 'Sol Ring'
+  }), history);
+
+  // The Zeta Set printings reuse existing Oracle identities.
+  recordEarliestMechanicalPrinting(baseCard({
+    oracle_id: bolt, set: 'slz', set_name: 'The Zeta Set',
+    set_type: 'box', released_at: '2026-09-02', name: 'Lightning Bolt'
+  }), history);
+  recordEarliestMechanicalPrinting(baseCard({
+    oracle_id: ring, set: 'slz', set_name: 'The Zeta Set',
+    set_type: 'box', released_at: '2026-09-02', name: 'Sol Ring'
+  }), history);
+
+  const introducingSets = setsIntroducingNewOracleCards(history);
+  assert.equal(introducingSets.has('LEA'), true);
+  assert.equal(introducingSets.has('C13'), true);
+  assert.equal(introducingSets.has('SLZ'), false);
+});
+
+test('a mixed product remains eligible when it introduces at least one new Oracle card', () => {
+  const history = new Map();
+  const oldOracle = '00000000-0000-4000-8000-0000000000d1';
+  const newOracle = '00000000-0000-4000-8000-0000000000d2';
+
+  recordEarliestMechanicalPrinting(baseCard({
+    oracle_id: oldOracle, set: 'lea', set_name: 'Limited Edition Alpha',
+    set_type: 'core', released_at: '1993-08-05', name: 'Old Card'
+  }), history);
+  recordEarliestMechanicalPrinting(baseCard({
+    oracle_id: oldOracle, set: 'mix', set_name: 'Mixed Product',
+    set_type: 'box', released_at: '2026-09-03', name: 'Old Card'
+  }), history);
+  recordEarliestMechanicalPrinting(baseCard({
+    oracle_id: newOracle, set: 'mix', set_name: 'Mixed Product',
+    set_type: 'box', released_at: '2026-09-03', name: 'Brand New Card'
+  }), history);
+
+  const introducingSets = setsIntroducingNewOracleCards(history);
+  assert.equal(introducingSets.has('MIX'), true);
+});
+
+test('an earlier printing in a ManaMatch-hidden product still prevents a later set from being treated as new', () => {
+  const history = new Map();
+  const oracle = '00000000-0000-4000-8000-0000000000e1';
+
+  // Even if a masters product is later excluded by ManaMatch, it is still part
+  // of paper Magic history for determining whether a later printing is new.
+  recordEarliestMechanicalPrinting(baseCard({
+    oracle_id: oracle, set: 'mma', set_name: 'Modern Masters',
+    set_type: 'masters', released_at: '2013-06-07', name: 'Historical Card'
+  }), history);
+  recordEarliestMechanicalPrinting(baseCard({
+    oracle_id: oracle, set: 'later', set_name: 'Later Reprint Product',
+    set_type: 'box', released_at: '2026-09-04', name: 'Historical Card'
+  }), history);
+
+  const introducingSets = setsIntroducingNewOracleCards(history);
+  assert.equal(introducingSets.has('MMA'), true);
+  assert.equal(introducingSets.has('LATER'), false);
+});
+
+
+test('Scryfall reprint flags take precedence over same-day chronology when classifying a set', () => {
+  const history = new Map();
+  const signals = new Map();
+  const oracle = '00000000-0000-4000-8000-0000000000f1';
+  const original = baseCard({ oracle_id: oracle, set: 'abc', released_at: '2026-10-01', reprint: false });
+  const sameDayReprint = baseCard({ oracle_id: oracle, set: 'xyz', released_at: '2026-10-01', reprint: true });
+  for (const card of [original, sameDayReprint]) {
+    recordEarliestMechanicalPrinting(card, history);
+    recordSetReprintSignal(card, signals);
+  }
+  const newSets = setsIntroducingNewOracleCards(history, signals);
+  assert.equal(newSets.has('ABC'), true);
+  assert.equal(newSets.has('XYZ'), false);
 });
