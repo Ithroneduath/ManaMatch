@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0d1210">
+  <meta name="description" content="ManaMatch — a daily Magic: The Gathering card guessing game powered by current Scryfall data.">
+  <title>ManaMatch — Daily Magic Card Guess</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/mana-font@1.18.0/css/mana.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/styles.css?v=2.3.0">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="site-header">
+      <button class="brand" id="brandButton" type="button" aria-label="Go to today's ManaMatch puzzle">
+        <span class="brand-mark" aria-hidden="true">M</span>
+        <span class="brand-copy">
+          <span class="brand-title-row">
+            <strong>ManaMatch</strong>
+            <span class="mana-sequence" aria-label="White, blue, black, red, green mana">
+              <i class="ms ms-w ms-cost ms-shadow" aria-hidden="true"></i>
+              <i class="ms ms-u ms-cost ms-shadow" aria-hidden="true"></i>
+              <i class="ms ms-b ms-cost ms-shadow" aria-hidden="true"></i>
+              <i class="ms ms-r ms-cost ms-shadow" aria-hidden="true"></i>
+              <i class="ms ms-g ms-cost ms-shadow" aria-hidden="true"></i>
+            </span>
+          </span>
+          <small>Daily card guess</small>
+        </span>
+      </button>
+      <div class="header-actions">
+        <button class="icon-button" id="helpButton" type="button" aria-label="How to play" title="How to play">?</button>
+        <button class="icon-button" id="statsButton" type="button" aria-label="Statistics" title="Statistics">▥</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div>
+          <p class="eyebrow" id="modeEyebrow">Today's puzzle</p>
+          <h1 id="gameTitle">Guess the Magic card</h1>
+          <p class="hero-copy" id="gameSubtitle">Use each guess to narrow down mana value, colors, rarity, type, subtype, and first printing.</p>
+        </div>
+        <div class="puzzle-badge" id="puzzleBadge" aria-live="polite">#—</div>
+      </section>
+
+      <nav class="mode-tabs" aria-label="Game mode">
+        <button class="mode-tab is-active" data-mode="daily" type="button">Daily</button>
+        <button class="mode-tab" data-mode="practice" type="button">Practice</button>
+        <button class="mode-tab" data-mode="archive" type="button">Archive</button>
+      </nav>
+
+      <section class="mode-controls" id="modeControls">
+        <div class="archive-control is-hidden" id="archiveControl">
+          <label for="archiveDate">Puzzle date</label>
+          <input id="archiveDate" type="date">
+          <button class="secondary-button" id="loadArchiveButton" type="button">Load puzzle</button>
+        </div>
+        <div class="practice-control is-hidden" id="practiceControl">
+          <button class="secondary-button" id="newPracticeButton" type="button">New practice card</button>
+          <span>Unlimited random games from released cards.</span>
+        </div>
+      </section>
+
+      <section class="game-panel" aria-labelledby="guessHeading">
+        <div class="guess-heading-row">
+          <div>
+            <h2 id="guessHeading">Make a guess</h2>
+            <p id="remainingText">20 guesses remaining</p>
+          </div>
+          <div class="legend-mini" aria-label="Clue legend">
+            <span><i class="swatch exact"></i>Exact</span>
+            <span><i class="swatch partial"></i>Partial</span>
+            <span><i class="swatch miss"></i>No match</span>
+          </div>
+        </div>
+
+        <div class="search-wrap" id="searchWrap">
+          <label class="sr-only" for="cardSearch">Search for a Magic card</label>
+          <div class="search-row">
+            <div class="autocomplete">
+              <input
+                id="cardSearch"
+                type="search"
+                autocomplete="off"
+                spellcheck="false"
+                placeholder="Type a card name…"
+                aria-autocomplete="list"
+                aria-controls="suggestions"
+                aria-expanded="false"
+              >
+              <div class="suggestions is-hidden" id="suggestions" role="listbox"></div>
+            </div>
+            <button class="primary-button" id="guessButton" type="button" disabled>Guess</button>
+          </div>
+          <p class="input-hint" id="inputHint">Start typing at least 2 characters, then choose a card.</p>
+        </div>
+
+        <section class="set-timeline" aria-labelledby="setTimelineHeading">
+          <div class="set-timeline-heading">
+            <div>
+              <h3 id="setTimelineHeading">First-printing set timeline</h3>
+              <p>Each symbol represents a set currently in the game. Guessed sets turn red, adjacent sets turn yellow, and the correct set turns green.</p>
+            </div>
+            <span class="set-count" id="setCount">— sets</span>
+          </div>
+          <div class="set-strip" id="setStrip" aria-label="Chronological Magic set symbols"></div>
+        </section>
+
+        <div class="error-banner is-hidden" id="errorBanner" role="alert"></div>
+
+        <div class="results-wrap" id="resultsWrap">
+          <table class="guess-table">
+            <thead>
+              <tr>
+                <th scope="col">Card</th>
+                <th scope="col" title="Mana value">MV</th>
+                <th scope="col">Colors</th>
+                <th scope="col">Rarity</th>
+                <th scope="col">Type</th>
+                <th scope="col">Subtype</th>
+                <th scope="col">First set</th>
+              </tr>
+            </thead>
+            <tbody id="guessRows">
+              <tr class="empty-row" id="emptyRow">
+                <td colspan="7">Your clues will appear here.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="answer-panel is-hidden" id="answerPanel" aria-live="polite">
+        <div class="answer-art" id="answerArt"></div>
+        <div class="answer-copy">
+          <p class="eyebrow" id="answerEyebrow">Puzzle complete</p>
+          <h2 id="answerName">—</h2>
+          <p id="answerDetails"></p>
+          <div class="answer-actions">
+            <button class="primary-button" id="shareButton" type="button">Share result</button>
+            <a class="secondary-button link-button is-hidden" id="scryfallLink" target="_blank" rel="noopener noreferrer">View on Scryfall</a>
+            <button class="secondary-button is-hidden" id="playAgainButton" type="button">Play another</button>
+          </div>
+          <p class="copy-status" id="copyStatus" aria-live="polite"></p>
+        </div>
+      </section>
+
+      <section class="data-note" id="dataNote">
+        <strong>Card data:</strong> loading…
+      </section>
+    </main>
+
+    <footer>
+      <p>Inspired by <a href="https://enchantworldle.com/" target="_blank" rel="noopener noreferrer">Enchant Worldle</a>. Card data supplied by <a href="https://scryfall.com" target="_blank" rel="noopener noreferrer">Scryfall</a>. Magic: The Gathering is property of Wizards of the Coast.</p>
+    </footer>
+  </div>
+
+  <dialog id="helpDialog" class="modal">
+    <form method="dialog" class="modal-card">
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow">How to play</p>
+          <h2>Find the hidden card in 20 guesses</h2>
+        </div>
+        <button class="icon-button" value="close" aria-label="Close">×</button>
+      </div>
+      <div class="help-grid">
+        <div class="help-item"><span class="help-chip exact">Exact</span><p>The guessed value exactly matches the hidden card.</p></div>
+        <div class="help-item"><span class="help-chip partial">Partial</span><p>For colors, types, and subtypes, at least one value overlaps. For first set, yellow means the guessed set is directly before or after the hidden card's set in the game timeline.</p></div>
+        <div class="help-item"><span class="help-chip miss">↑ / ↓</span><p>Arrows on mana value, rarity, or year point toward the hidden card's value.</p></div>
+      </div>
+      <p><strong>First set</strong> means the earliest English paper printing in the game database. Double-faced and split cards are treated as one Oracle card.</p>
+      <p>Daily and archived answers only use cards released on or before that puzzle date. Preview cards cannot become an answer early.</p>
+      <button class="primary-button modal-done" value="close">Got it</button>
+    </form>
+  </dialog>
+
+  <dialog id="statsDialog" class="modal">
+    <form method="dialog" class="modal-card stats-card">
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow">Your stats</p>
+          <h2>Daily performance</h2>
+        </div>
+        <button class="icon-button" value="close" aria-label="Close">×</button>
+      </div>
+      <div class="stats-grid">
+        <div><strong id="statPlayed">0</strong><span>Played</span></div>
+        <div><strong id="statWinRate">0%</strong><span>Win rate</span></div>
+        <div><strong id="statStreak">0</strong><span>Streak</span></div>
+        <div><strong id="statBest">0</strong><span>Best streak</span></div>
+      </div>
+      <h3>Guess distribution</h3>
+      <div class="distribution" id="distribution"></div>
+      <button class="primary-button modal-done" value="close">Close</button>
+    </form>
+  </dialog>
+
+  <div class="hover-card-preview is-hidden" id="hoverCardPreview" aria-hidden="true"></div>
+  <div class="toast is-hidden" id="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="/assets/app.js?v=2.3.0"></script>
+</body>
+</html>

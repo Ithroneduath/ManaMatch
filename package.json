@@ -1,0 +1,17 @@
+{
+  "name": "mana-match",
+  "version": "2.3.0",
+  "private": true,
+  "type": "module",
+  "description": "A self-updating daily Magic: The Gathering card guessing game for Netlify.",
+  "scripts": {
+    "update-cards": "node scripts/update-cards.mjs",
+    "build": "npm run update-cards",
+    "build:sample": "SKIP_CARD_UPDATE=1 npm run build",
+    "dev": "npx netlify dev",
+    "test": "SKIP_CARD_UPDATE=1 node --test tests/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
