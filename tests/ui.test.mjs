@@ -25,9 +25,9 @@ test('header includes WUBRG mana icons in order', () => {
   assert.ok(w >= 0 && w < u && u < b && b < r && r < g);
 });
 
-test('v2.3 busts old immutable asset cache and uses revalidation going forward', () => {
-  assert.match(html, /styles\.css\?v=2\.3\.0/);
-  assert.match(html, /app\.js\?v=2\.3\.0/);
+test('v2.4 uses versioned assets and revalidation', () => {
+  assert.match(html, /styles\.css\?v=2\.4\.0/);
+  assert.match(html, /app\.js\?v=2\.4\.0/);
   assert.doesNotMatch(toml, /max-age=31536000, immutable/);
   assert.match(toml, /max-age=3600, must-revalidate/);
 });
@@ -37,4 +37,11 @@ test('README contains detailed build hook instructions and automatic icon explan
   assert.match(readme, /NETLIFY_BUILD_HOOK_URL/);
   assert.match(readme, /Do new set icons appear automatically\?/);
   assert.match(readme, /icon_svg_uri/);
+});
+
+
+test('daily heading uses the full Magic: The Gathering name', () => {
+  assert.match(html, /Guess the Magic: The Gathering Card/);
+  assert.match(app, /Guess the Magic: The Gathering Card/);
+  assert.doesNotMatch(html, />Guess the Magic card</i);
 });

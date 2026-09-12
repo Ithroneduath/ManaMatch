@@ -4,7 +4,7 @@ import readline from 'node:readline';
 import { writeFile, readFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { isEligibleCardPrinting, canonicalSetForCard } from './card-eligibility.mjs';
+import { isEligibleCardPrinting, canonicalSetForCard, recordOracleCandidate, resolveOracleCandidates } from './card-eligibility.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dataDir = path.join(root, 'data');
@@ -14,7 +14,7 @@ const metaPath = path.join(publicDir, 'card-data-meta.json');
 const indexPath = path.join(publicDir, 'card-index.json');
 const setIndexPath = path.join(publicDir, 'set-index.json');
 
-const USER_AGENT = 'ManaMatch/2.2 (self-hosted MTG guessing game)';
+const USER_AGENT = 'ManaMatch/2.4 (self-hosted MTG guessing game)';
 const ACCEPT = 'application/json;q=0.9,*/*;q=0.8';
 const BULK_URL = 'https://api.scryfall.com/bulk-data';
 const SETS_URL = 'https://api.scryfall.com/sets';
@@ -89,16 +89,6 @@ function imageFor(card) {
 }
 
 
-function prefer(candidate, current) {
-  if (!current) return true;
-  if (candidate.released_at < current.released_at) return true;
-  if (candidate.released_at > current.released_at) return false;
-
-  // Promo printings are filtered before this point; use a stable tie-breaker
-  // when two eligible non-promo printings share the same release date.
-  return String(candidate.set).localeCompare(String(current.set)) < 0;
-}
-
 function compact(card, setInfo) {
   const parsed = splitTypeLine(card.type_line);
   return {
@@ -164,30 +154,39 @@ if (!downloadUri) throw new Error('Scryfall default_cards dataset did not includ
 
 console.log(`Downloading ${defaultCards.name || 'Default Cards'}…`);
 const bulk = await readBulk(downloadUri);
-const earliestByOracle = new Map();
+// Secret Lair needs one additional cross-printing rule: ordinary SLD
+// reprints should not make SLD a first-set answer. Keep two streaming
+// candidates per Oracle ID. A non-SLD printing always wins when one exists;
+// an SLD printing is retained only when that Oracle card has no eligible
+// non-SLD printing anywhere in Scryfall. This keeps mechanically unique SLD
+// cards (for example a card currently printed only in SLD) while dropping
+// normal Secret Lair reprints/reskins from the SLD answer pool.
+const earliestNonSecretByOracle = new Map();
+const earliestSecretOnlyByOracle = new Map();
 let scanned = 0;
 let acceptedPrintings = 0;
 
-if (bulk.kind === 'jsonl') {
-  for await (const card of jsonlObjects(bulk.response, bulk.isGzip)) {
-    scanned += 1;
-    if (!isEligibleCardPrinting(card)) continue;
-    acceptedPrintings += 1;
-    const current = earliestByOracle.get(card.oracle_id);
-    if (prefer(card, current)) earliestByOracle.set(card.oracle_id, card);
-  }
-} else {
-  const cards = await bulk.response.json();
-  for (const card of cards) {
-    scanned += 1;
-    if (!isEligibleCardPrinting(card)) continue;
-    acceptedPrintings += 1;
-    const current = earliestByOracle.get(card.oracle_id);
-    if (prefer(card, current)) earliestByOracle.set(card.oracle_id, card);
-  }
+function considerPrinting(card) {
+  scanned += 1;
+  if (!isEligibleCardPrinting(card, setMetaByCode)) return;
+  acceptedPrintings += 1;
+
+  recordOracleCandidate(card, earliestNonSecretByOracle, earliestSecretOnlyByOracle);
 }
 
-const cards = [...earliestByOracle.values()]
+if (bulk.kind === 'jsonl') {
+  for await (const card of jsonlObjects(bulk.response, bulk.isGzip)) considerPrinting(card);
+} else {
+  const bulkCards = await bulk.response.json();
+  for (const card of bulkCards) considerPrinting(card);
+}
+
+const { selectedByOracle, secretLairExclusiveCards } = resolveOracleCandidates(
+  earliestNonSecretByOracle,
+  earliestSecretOnlyByOracle
+);
+
+const cards = [...selectedByOracle.values()]
   .map((card) => compact(card, canonicalSetForCard(card, setMetaByCode)))
   .sort((a, b) => a.id.localeCompare(b.id));
 
@@ -230,8 +229,9 @@ const meta = {
   generatedAt: new Date().toISOString(),
   scannedPrintings: scanned,
   acceptedPaperPrintings: acceptedPrintings,
+  secretLairExclusiveCards,
   uniqueCards: cards.length,
   gameSets: setIndex.length
 };
 await writeFile(metaPath, JSON.stringify(meta, null, 2));
-console.log(`Wrote ${cards.length.toLocaleString()} unique paper cards and ${setIndex.length.toLocaleString()} game sets from ${acceptedPrintings.toLocaleString()} eligible printings.`);
+console.log(`Wrote ${cards.length.toLocaleString()} unique paper cards and ${setIndex.length.toLocaleString()} game sets from ${acceptedPrintings.toLocaleString()} eligible printings (${secretLairExclusiveCards.toLocaleString()} SLD-exclusive Oracle cards).`);

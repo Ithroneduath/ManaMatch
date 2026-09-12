@@ -243,7 +243,7 @@ function updateModeUI() {
 
   if (state.mode === 'daily') {
     els.modeEyebrow.textContent = "Today's puzzle";
-    els.gameTitle.textContent = 'Guess the Magic card';
+    els.gameTitle.textContent = 'Guess the Magic: The Gathering Card';
     els.gameSubtitle.textContent = 'Use each guess to narrow down mana value, colors, rarity, type, subtype, and first printing.';
     els.puzzleBadge.textContent = `#${state.info.puzzleNumber}`;
   } else if (state.mode === 'archive') {

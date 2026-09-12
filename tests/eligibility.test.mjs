@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { isEligibleCardPrinting, canonicalSetForCard } from '../scripts/card-eligibility.mjs';
+import { isEligibleCardPrinting, canonicalSetForCard, isHeroesOfTheRealmCode, isRedundantPrefixedCompanion, recordOracleCandidate, resolveOracleCandidates } from '../scripts/card-eligibility.mjs';
 
 function baseCard(overrides = {}) {
   return {
@@ -90,4 +90,57 @@ test('a legitimate four-character code is not stripped merely for being four cha
     set: 'abcd', set_name: 'Fixture Four-Letter Set', set_type: 'expansion', released_at: '2026-01-01'
   }), sets);
   assert.equal(result.code, 'ABCD');
+});
+
+
+test('reprint/supplemental set categories are excluded automatically', () => {
+  for (const setType of ['token', 'masters', 'masterpiece', 'from_the_vault', 'duel_deck', 'vanguard', 'memorabilia']) {
+    assert.equal(isEligibleCardPrinting(baseCard({ set_type: setType })), false, setType);
+  }
+});
+
+test('requested special set codes are excluded even if metadata type is otherwise ordinary', () => {
+  const codes = ['MGB','PVAN','TSB','HHO','TSOM','TC15','E01','PHTR','MED','TUND','MUL','PLST','SZNR','STA','TAFR','SUNF','TUNF','TWOE','MB2'];
+  for (const code of codes) {
+    assert.equal(isEligibleCardPrinting(baseCard({ set: code.toLowerCase(), set_type: 'expansion' })), false, code);
+  }
+});
+
+test('all PH-number Heroes of the Realm set codes are excluded, including future years', () => {
+  assert.equal(isHeroesOfTheRealmCode('PH17'), true);
+  assert.equal(isHeroesOfTheRealmCode('PH23'), true);
+  assert.equal(isHeroesOfTheRealmCode('PH27'), true);
+  assert.equal(isHeroesOfTheRealmCode('PHTR'), false);
+  assert.equal(isEligibleCardPrinting(baseCard({ set: 'ph27', set_type: 'expansion' })), false);
+});
+
+test('metadata-confirmed one-letter prefixed child sets are removed while O-prefixed companions are preserved for folding', () => {
+  const sets = new Map([
+    ['WOE', { code: 'woe', name: 'Wilds of Eldraine', set_type: 'expansion', released_at: '2023-09-08' }],
+    ['TWOE', { code: 'twoe', name: 'Wilds of Eldraine Tokens', set_type: 'token', released_at: '2023-09-08', parent_set_code: 'woe' }],
+    ['HOP', { code: 'hop', name: 'Planechase', set_type: 'planechase', released_at: '2009-09-04', icon_svg_uri: 'https://svgs.scryfall.io/sets/hop.svg' }],
+    ['OHOP', { code: 'ohop', name: 'Planechase Planes', set_type: 'planechase', released_at: '2009-09-04', parent_set_code: 'hop', icon_svg_uri: 'https://svgs.scryfall.io/sets/hop.svg' }]
+  ]);
+  const twoe = baseCard({ set: 'twoe', set_name: 'Wilds of Eldraine Tokens', set_type: 'token', released_at: '2023-09-08' });
+  const ohop = baseCard({ set: 'ohop', set_name: 'Planechase Planes', set_type: 'planechase', released_at: '2009-09-04' });
+  assert.equal(isRedundantPrefixedCompanion(twoe, sets), true);
+  assert.equal(isEligibleCardPrinting(twoe, sets), false);
+  assert.equal(isRedundantPrefixedCompanion(ohop, sets), false);
+  assert.equal(isEligibleCardPrinting(ohop, sets), true);
+});
+
+test('Secret Lair reprints lose to any eligible non-SLD printing, but SLD-exclusive Oracle cards remain', () => {
+  const nonSecret = new Map();
+  const secret = new Map();
+  const oracleA = '00000000-0000-4000-8000-0000000000aa';
+  const oracleB = '00000000-0000-4000-8000-0000000000bb';
+
+  recordOracleCandidate(baseCard({ oracle_id: oracleA, set: 'sld', set_name: 'Secret Lair Drop', set_type: 'box', released_at: '2026-07-27', name: 'Reprint Fixture' }), nonSecret, secret);
+  recordOracleCandidate(baseCard({ oracle_id: oracleA, set: 'lea', set_name: 'Limited Edition Alpha', set_type: 'core', released_at: '1993-08-05', name: 'Reprint Fixture' }), nonSecret, secret);
+  recordOracleCandidate(baseCard({ oracle_id: oracleB, set: 'sld', set_name: 'Secret Lair Drop', set_type: 'box', released_at: '2026-07-27', name: 'SLD Exclusive Fixture' }), nonSecret, secret);
+
+  const { selectedByOracle, secretLairExclusiveCards } = resolveOracleCandidates(nonSecret, secret);
+  assert.equal(selectedByOracle.get(oracleA).set, 'lea');
+  assert.equal(selectedByOracle.get(oracleB).set, 'sld');
+  assert.equal(secretLairExclusiveCards, 1);
 });

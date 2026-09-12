@@ -1,4 +1,4 @@
-# ManaMatch v2.3
+# ManaMatch v2.4
 
 ManaMatch is a self-updating daily **Magic: The Gathering** card guessing game designed for Netlify. It recreates the general idea of a card-attribute guessing game without copying EnchantWorldle's code or branding.
 
@@ -35,6 +35,23 @@ The API now includes the guessed card's image URL in the public guess payload. D
 
 
 
+## Version 2.4 set cleanup, Secret Lair uniqueness, and wording
+
+This release performs a broader cleanup of the first-printing timeline. The updater now excludes Scryfall set categories that are supplemental/reprint/nonstandard products for ManaMatch purposes: **token, memorabilia, masters, masterpiece, From the Vault, Duel Deck, and Vanguard**. It also excludes the requested historical/special entries such as `MGB`, `TSB`, `HHO`, `E01`, `PHTR`, `PLST`, and `MB2`, plus every `PH##` Heroes of the Realm-style code.
+
+ManaMatch also uses Scryfall's `parent_set_code` metadata to detect one-letter-prefixed companion products such as `TWOE` → `WOE` and `SZNR` → `ZNR`. Those child products are excluded automatically instead of requiring a growing manual list. The existing `O...` Planechase exception remains: entries such as `OHOP` are folded into `HOP` so unique Plane cards can stay in the game without a duplicate symbol.
+
+### Secret Lair (`SLD`) rule
+
+Secret Lair is handled at the **Oracle-card level**, not by deleting SLD entirely. During the bulk-data pass ManaMatch keeps separate candidates for SLD and non-SLD printings:
+
+- If an Oracle card has **any eligible non-SLD printing**, ManaMatch uses the earliest eligible non-SLD printing and the SLD copy does not make SLD its first-set answer.
+- If the Oracle card has **no eligible non-SLD printing**, the SLD printing remains eligible. This preserves mechanically/new-to-Magic Secret Lair cards while removing ordinary reprints/reskins from SLD's contribution to the game.
+
+This means a mechanically unique card such as a new-to-Magic Secret Lair design can remain, while cards such as Sol Ring or Swords to Plowshares in the same drop resolve to their normal earlier printings.
+
+The daily heading now reads **“Guess the Magic: The Gathering Card”**.
+
 ## Version 2.3 polish and automatic set icons
 
 - The footer now reads **“Inspired by Enchant Worldle.”** instead of “Unofficial fan project.”
@@ -48,11 +65,11 @@ The API now includes the guessed card's image URL in the public guess payload. D
 
 1. downloads the current Scryfall `default_cards` bulk data;
 2. downloads Scryfall set metadata;
-3. recalculates the eligible first-printing sets after promo/memorabilia cleanup;
+3. recalculates the eligible first-printing sets after promo, memorabilia, reprint-product, companion-set, and Secret Lair cleanup;
 4. takes each set's canonical `icon_svg_uri` from Scryfall (with a predictable Scryfall SVG fallback); and
 5. rewrites `public/set-index.json`, which is what the horizontal set-symbol strip reads.
 
-The browser hides a set until its release date is valid for the puzzle being played. Therefore a newly released normal set will appear automatically after the next successful data-refresh build, assuming Scryfall has added eligible cards and set metadata for it. Promo and memorabilia/front-card sets remain intentionally excluded.
+The browser hides a set until its release date is valid for the puzzle being played. Therefore a newly released normal set will appear automatically after the next successful data-refresh build, assuming Scryfall has added eligible cards and set metadata for it. Promo, memorabilia/front-card, token, masters, masterpiece/bonus-sheet, Duel Deck, From the Vault, Vanguard, and other configured supplemental sets remain intentionally excluded.
 
 With the Build Hook configured in Step 5 below, the included scheduled function triggers this rebuild once per day. Without a Build Hook, new cards and set symbols still update whenever you manually deploy or push a code change.
 
@@ -80,12 +97,13 @@ A normal build runs `scripts/update-cards.mjs`, which:
 1. Discovers Scryfall's current `default_cards` bulk dataset.
 2. Supports the current gzipped JSONL bulk format and the older JSON-array format.
 3. Keeps English, non-digital cards that have a paper printing.
-4. Excludes tokens, emblems, art cards, playtest cards, **all promo printings**, and Scryfall **memorabilia/front-card printings**.
-5. Folds recognized non-promo oversized companion entries (for example `OHOP`) into their main set (`HOP`).
-6. Groups printings by Oracle ID.
-7. Uses the earliest eligible English paper printing for rarity/set/year.
-8. Loads Scryfall set metadata and generates a chronological public set-symbol index using canonical set icon URIs.
-9. Writes a compact server-side card database plus public autocomplete and set indexes.
+4. Excludes tokens, emblems, art cards, playtest cards, **all promo printings**, and Scryfall **memorabilia/front-card, token, masters, masterpiece, From the Vault, Duel Deck, and Vanguard** printings.
+5. Removes configured supplemental/bonus products and metadata-confirmed one-letter-prefixed child sets.
+6. Folds recognized non-promo `O`-prefixed oversized companion entries (for example `OHOP`) into their main set (`HOP`).
+7. Groups printings by Oracle ID and treats SLD as a fallback: an SLD printing is selected only when that Oracle card has no eligible non-SLD printing.
+8. Uses the earliest eligible English paper printing for rarity/set/year.
+9. Loads Scryfall set metadata and generates a chronological public set-symbol index using canonical set icon URIs.
+10. Writes a compact server-side card database plus public autocomplete and set indexes.
 
 Future cards can therefore enter the game without editing source code. Preview cards may exist in the generated database, but the game will not allow them as guesses or answers until their `released_at` date.
 
