@@ -1,4 +1,4 @@
-# ManaMatch v2.6
+# ManaMatch v2.7
 
 ManaMatch is a self-updating daily **Magic: The Gathering** card guessing game designed for Netlify. It recreates the general idea of a card-attribute guessing game without copying EnchantWorldle's code or branding.
 
@@ -40,6 +40,7 @@ The API now includes the guessed card's image URL in the public guess payload. D
 
 - The **ManaMatch** site name is now substantially larger and the five W/U/B/R/G mana symbols scale up with it, so the branding is visually dominant rather than smaller than page copy.
 - A stylized **20-sided die (d20)** now appears beside “Make a guess.” Its center number is driven by the game's actual remaining-guess count and updates from 20 down to 0.
+- After each accepted guess, the d20 now **rolls/tumbles for about 0.7 seconds**, flashes through random die faces, and then lands on the correct new guesses-remaining value. Reduced-motion preferences disable the animation automatically.
 - The d20 remains accessible: the same information is still shown as text and the die exposes an updated accessible label for screen readers.
 - On small screens, the title, mana symbols, and d20 scale down responsively without changing the game logic.
 

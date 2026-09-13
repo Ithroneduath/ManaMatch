@@ -169,6 +169,57 @@ function clearError() {
 }
 
 let toastTimer;
+let dieRollTimer = null;
+let dieRollFinishTimer = null;
+
+function clearDieRollAnimation() {
+  clearTimeout(dieRollTimer);
+  clearTimeout(dieRollFinishTimer);
+  dieRollTimer = null;
+  dieRollFinishTimer = null;
+  els.remainingDie?.classList.remove('is-rolling');
+}
+
+function rollRemainingDie(finalValue) {
+  if (!els.remainingDie || !els.remainingDieValue) return;
+
+  clearDieRollAnimation();
+  const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  if (reduceMotion) {
+    els.remainingDieValue.textContent = String(finalValue);
+    return;
+  }
+
+  // Restart the CSS animation even when consecutive guesses happen after a prior roll.
+  void els.remainingDie.offsetWidth;
+  els.remainingDie.classList.add('is-rolling');
+
+  const startedAt = performance.now();
+  const duration = 680;
+  const tick = () => {
+    const elapsed = performance.now() - startedAt;
+    if (elapsed >= duration) {
+      els.remainingDieValue.textContent = String(finalValue);
+      return;
+    }
+
+    // The flashed values are visual flavor only; accessibility text always reports
+    // the real number of guesses remaining.
+    let face = 1 + Math.floor(Math.random() * 20);
+    if (face === finalValue && finalValue > 0) face = (face % 20) + 1;
+    els.remainingDieValue.textContent = String(face);
+    dieRollTimer = setTimeout(tick, 68 + Math.floor(elapsed / 6));
+  };
+
+  tick();
+  dieRollFinishTimer = setTimeout(() => {
+    els.remainingDieValue.textContent = String(finalValue);
+    els.remainingDie.classList.remove('is-rolling');
+    dieRollTimer = null;
+    dieRollFinishTimer = null;
+  }, duration + 45);
+}
+
 function toast(message) {
   clearTimeout(toastTimer);
   els.toast.textContent = message;
@@ -662,6 +713,7 @@ async function submitGuess() {
     if (state.finished) recordDailyStatsIfNeeded();
     saveGame();
     renderGame();
+    rollRemainingDie(Math.max(0, state.info.maxGuesses - state.rows.length));
     requestAnimationFrame(() => scrollSetIntoView(guessedSetCode));
     if (state.finished) {
       setTimeout(() => els.answerPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 80);

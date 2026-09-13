@@ -25,9 +25,9 @@ test('header includes WUBRG mana icons in order', () => {
   assert.ok(w >= 0 && w < u && u < b && b < r && r < g);
 });
 
-test('v2.6 uses versioned assets and revalidation', () => {
-  assert.match(html, /styles\.css\?v=2\.6\.0/);
-  assert.match(html, /app\.js\?v=2\.6\.0/);
+test('v2.7 uses versioned assets and revalidation', () => {
+  assert.match(html, /styles\.css\?v=2\.7\.0/);
+  assert.match(html, /app\.js\?v=2\.7\.0/);
   assert.doesNotMatch(toml, /max-age=31536000, immutable/);
   assert.match(toml, /max-age=3600, must-revalidate/);
 });
@@ -47,7 +47,7 @@ test('daily heading uses the full Magic: The Gathering name', () => {
 });
 
 
-test('header branding is enlarged and includes a d20 remaining-guesses indicator', async () => {
+test('header branding is enlarged and includes a rolling d20 remaining-guesses indicator', async () => {
   const styles = await readFile(new URL('../public/assets/styles.css', import.meta.url), 'utf8');
   assert.match(styles, /brand-copy strong[\s\S]*clamp\(32px/);
   assert.match(styles, /mana-sequence \.ms[\s\S]*clamp\(24px/);
@@ -56,4 +56,15 @@ test('header branding is enlarged and includes a d20 remaining-guesses indicator
   assert.match(html, /class="d20-art"/);
   assert.match(app, /remainingDieValue\.textContent = String\(remaining\)/);
   assert.match(app, /remainingDie\.setAttribute\('aria-label', remainingLabel\)/);
+});
+
+
+test('d20 rolls after an accepted guess and respects reduced motion', async () => {
+  const styles = await readFile(new URL('../public/assets/styles.css', import.meta.url), 'utf8');
+  assert.match(app, /function rollRemainingDie\(finalValue\)/);
+  assert.match(app, /rollRemainingDie\(Math\.max\(0, state\.info\.maxGuesses - state\.rows\.length\)\)/);
+  assert.match(app, /prefers-reduced-motion: reduce/);
+  assert.match(styles, /\.remaining-die\.is-rolling/);
+  assert.match(styles, /@keyframes d20-tumble/);
+  assert.match(styles, /@media \(prefers-reduced-motion: reduce\)/);
 });

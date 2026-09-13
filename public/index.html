@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/mana-font@1.18.0/css/mana.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="/assets/styles.css?v=2.6.0">
+  <link rel="stylesheet" href="/assets/styles.css?v=2.7.0">
 </head>
 <body>
   <div class="app-shell">
@@ -185,7 +185,7 @@
       </div>
       <p><strong>First set</strong> means the earliest English paper printing in the game database. Double-faced and split cards are treated as one Oracle card.</p>
       <p>Daily and archived answers only use cards released on or before that puzzle date. Preview cards cannot become an answer early.</p>
-      <p>The <strong>d20</strong> beside the guess box shows how many guesses remain.</p>
+      <p>The <strong>d20</strong> beside the guess box shows how many guesses remain. After each accepted guess, it rolls and lands on the new total.</p>
       <button class="primary-button modal-done" value="close">Got it</button>
     </form>
   </dialog>
@@ -213,6 +213,6 @@
 
   <div class="hover-card-preview is-hidden" id="hoverCardPreview" aria-hidden="true"></div>
   <div class="toast is-hidden" id="toast" role="status" aria-live="polite"></div>
-  <script type="module" src="/assets/app.js?v=2.6.0"></script>
+  <script type="module" src="/assets/app.js?v=2.7.0"></script>
 </body>
 </html>
