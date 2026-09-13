@@ -37,7 +37,7 @@ a { color: var(--accent-2); }
 
 .app-shell { width: min(1180px, calc(100% - 32px)); margin: 0 auto; }
 .site-header {
-  min-height: 78px;
+  min-height: 98px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -46,7 +46,7 @@ a { color: var(--accent-2); }
 .brand {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 15px;
   border: 0;
   background: transparent;
   color: inherit;
@@ -57,24 +57,24 @@ a { color: var(--accent-2); }
 .brand-mark {
   display: grid;
   place-items: center;
-  width: 42px;
-  height: 42px;
+  width: 54px;
+  height: 54px;
   border: 1px solid rgba(240,210,139,.45);
   border-radius: 50% 50% 46% 54% / 58% 45% 55% 42%;
   background: linear-gradient(145deg, rgba(211,170,85,.24), rgba(211,170,85,.05));
   color: var(--accent-2);
   font-family: var(--display-font);
   font-weight: 700;
-  font-size: 24px;
+  font-size: 31px;
   transform: rotate(-4deg);
 }
 .brand-copy { display: grid; line-height: 1.05; }
-.brand-title-row { display: inline-flex; align-items: center; gap: 10px; }
-.brand-copy strong { font-family: var(--display-font); font-size: 22px; letter-spacing: .01em; }
-.mana-sequence { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
-.mana-sequence .ms { font-size: 17px; }
+.brand-title-row { display: inline-flex; align-items: center; gap: 14px; }
+.brand-copy strong { font-family: var(--display-font); font-size: clamp(32px, 3.35vw, 44px); letter-spacing: .015em; line-height: .98; }
+.mana-sequence { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.mana-sequence .ms { font-size: clamp(24px, 2.3vw, 31px); }
 .mana-sequence .ms-cost { margin: 0; }
-.brand-copy small { color: var(--muted); margin-top: 4px; font-size: 12px; text-transform: uppercase; letter-spacing: .11em; }
+.brand-copy small { color: var(--muted); margin-top: 7px; font-size: 13px; text-transform: uppercase; letter-spacing: .13em; }
 .header-actions { display: flex; gap: 8px; }
 .icon-button {
   width: 39px;
@@ -149,9 +149,37 @@ input[type="date"] {
   box-shadow: var(--shadow);
 }
 .game-panel { padding: 22px; }
-.guess-heading-row { display: flex; align-items: start; justify-content: space-between; gap: 20px; }
+.guess-heading-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.guess-status { display: flex; align-items: center; gap: 15px; min-width: 0; }
+.guess-status-copy { min-width: 0; }
 .guess-heading-row h2 { margin: 0; font-size: 19px; }
 .guess-heading-row p { margin: 5px 0 0; color: var(--muted); font-size: 14px; }
+.remaining-die {
+  position: relative;
+  flex: 0 0 72px;
+  width: 72px;
+  height: 72px;
+  display: grid;
+  place-items: center;
+  filter: drop-shadow(0 8px 16px rgba(0,0,0,.28));
+}
+.d20-art { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.d20-shell { fill: rgba(211,170,85,.11); stroke: #d3aa55; stroke-width: 3.2; stroke-linejoin: round; }
+.d20-facet { fill: none; stroke: rgba(240,210,139,.52); stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+.remaining-die-value {
+  position: relative;
+  z-index: 1;
+  margin-top: 2px;
+  color: #fff4d4;
+  font-family: var(--display-font);
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1;
+  text-shadow: 0 2px 5px rgba(0,0,0,.75);
+}
+.remaining-die.is-low .d20-shell { fill: rgba(155,106,32,.24); stroke: #e0b35d; }
+.remaining-die.is-empty .d20-shell { fill: rgba(168,79,79,.22); stroke: #d27a7a; }
+.remaining-die.is-empty .d20-facet { stroke: rgba(255,198,198,.48); }
 .legend-mini { display: flex; gap: 13px; color: var(--muted); font-size: 12px; flex-wrap: wrap; justify-content: end; }
 .legend-mini span { display: inline-flex; align-items: center; gap: 5px; }
 .swatch { display: inline-block; width: 9px; height: 9px; border-radius: 3px; }
@@ -334,7 +362,11 @@ footer { border-top: 1px solid rgba(255,255,255,.07); padding: 20px 0 34px; colo
 
 @media (max-width: 720px) {
   .app-shell { width: min(100% - 20px, 1180px); }
-  .site-header { min-height: 66px; }
+  .site-header { min-height: 82px; }
+  .brand { gap: 10px; }
+  .brand-mark { width: 45px; height: 45px; font-size: 26px; }
+  .brand-copy strong { font-size: 28px; }
+  .mana-sequence .ms { font-size: 19px; }
   .brand-copy small { display: none; }
   .hero { padding: 31px 2px 20px; align-items: start; }
   .hero-copy { font-size: 14px; }
@@ -344,6 +376,9 @@ footer { border-top: 1px solid rgba(255,255,255,.07); padding: 20px 0 34px; colo
   .mode-controls { min-height: 76px; }
   .game-panel { padding: 14px; }
   .guess-heading-row { display: block; }
+  .guess-status { gap: 12px; }
+  .remaining-die { flex-basis: 62px; width: 62px; height: 62px; }
+  .remaining-die-value { font-size: 21px; }
   .legend-mini { justify-content: start; margin-top: 12px; }
   .search-row { display: grid; grid-template-columns: 1fr; }
   #guessButton { width: 100%; }
@@ -480,7 +515,14 @@ h1, h2, h3, .eyebrow, .mode-tab, .primary-button, .secondary-button, .puzzle-bad
 }
 .set-code { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
 @media (max-width: 520px) {
-  .brand-title-row { gap: 7px; }
-  .mana-sequence { gap: 2px; }
-  .mana-sequence .ms { font-size: 14px; }
+  .site-header { min-height: 92px; align-items: center; }
+  .brand { min-width: 0; }
+  .brand-mark { display: none; }
+  .brand-title-row { display: grid; gap: 5px; }
+  .brand-copy strong { font-size: clamp(28px, 9vw, 35px); }
+  .mana-sequence { gap: 4px; }
+  .mana-sequence .ms { font-size: clamp(19px, 5.5vw, 24px); }
+  .header-actions { align-self: center; }
+  .remaining-die { flex-basis: 58px; width: 58px; height: 58px; }
+  .remaining-die-value { font-size: 19px; }
 }

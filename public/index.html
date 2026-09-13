@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/mana-font@1.18.0/css/mana.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="/assets/styles.css?v=2.5.0">
+  <link rel="stylesheet" href="/assets/styles.css?v=2.6.0">
 </head>
 <body>
   <div class="app-shell">
@@ -68,9 +68,18 @@
 
       <section class="game-panel" aria-labelledby="guessHeading">
         <div class="guess-heading-row">
-          <div>
-            <h2 id="guessHeading">Make a guess</h2>
-            <p id="remainingText">20 guesses remaining</p>
+          <div class="guess-status">
+            <div class="remaining-die" id="remainingDie" role="img" aria-label="20 guesses remaining">
+              <svg class="d20-art" viewBox="0 0 100 100" aria-hidden="true">
+                <polygon class="d20-shell" points="50,2 78,10 96,35 94,65 72,91 50,99 28,91 6,65 4,35 22,10"></polygon>
+                <path class="d20-facet" d="M50 2 50 25 22 10M50 2 78 10 50 25M22 10 27 37 4 35M78 10 73 37 96 35M4 35 18 63 6 65M96 35 82 63 94 65M6 65 28 91 50 75M94 65 72 91 50 75M28 91 50 99 50 75M72 91 50 99 50 75M27 37 50 25 73 37M27 37 18 63 50 75M73 37 82 63 50 75M18 63 50 75 82 63M27 37 50 75 73 37"></path>
+              </svg>
+              <span class="remaining-die-value" id="remainingDieValue">20</span>
+            </div>
+            <div class="guess-status-copy">
+              <h2 id="guessHeading">Make a guess</h2>
+              <p id="remainingText">20 guesses remaining</p>
+            </div>
           </div>
           <div class="legend-mini" aria-label="Clue legend">
             <span><i class="swatch exact"></i>Exact</span>
@@ -176,6 +185,7 @@
       </div>
       <p><strong>First set</strong> means the earliest English paper printing in the game database. Double-faced and split cards are treated as one Oracle card.</p>
       <p>Daily and archived answers only use cards released on or before that puzzle date. Preview cards cannot become an answer early.</p>
+      <p>The <strong>d20</strong> beside the guess box shows how many guesses remain.</p>
       <button class="primary-button modal-done" value="close">Got it</button>
     </form>
   </dialog>
@@ -203,6 +213,6 @@
 
   <div class="hover-card-preview is-hidden" id="hoverCardPreview" aria-hidden="true"></div>
   <div class="toast is-hidden" id="toast" role="status" aria-live="polite"></div>
-  <script type="module" src="/assets/app.js?v=2.5.0"></script>
+  <script type="module" src="/assets/app.js?v=2.6.0"></script>
 </body>
 </html>

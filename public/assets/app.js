@@ -13,6 +13,8 @@ const els = {
   practiceControl: $('#practiceControl'),
   newPracticeButton: $('#newPracticeButton'),
   remainingText: $('#remainingText'),
+  remainingDie: $('#remainingDie'),
+  remainingDieValue: $('#remainingDieValue'),
   cardSearch: $('#cardSearch'),
   suggestions: $('#suggestions'),
   guessButton: $('#guessButton'),
@@ -267,13 +269,21 @@ function puzzleNumberFromDate(date) {
 
 function updateRemaining() {
   const remaining = Math.max(0, state.info.maxGuesses - state.rows.length);
+  const remainingLabel = `${remaining} ${remaining === 1 ? 'guess' : 'guesses'} remaining`;
+
+  els.remainingDieValue.textContent = String(remaining);
+  els.remainingDie.setAttribute('aria-label', remainingLabel);
+  els.remainingDie.title = remainingLabel;
+  els.remainingDie.classList.toggle('is-low', remaining > 0 && remaining <= 5);
+  els.remainingDie.classList.toggle('is-empty', remaining === 0);
+
   if (state.finished && state.won) {
     const count = state.rows.length;
-    els.remainingText.textContent = `Solved in ${count} ${count === 1 ? 'guess' : 'guesses'}`;
+    els.remainingText.textContent = `Solved in ${count} ${count === 1 ? 'guess' : 'guesses'} · ${remainingLabel}`;
   } else if (state.finished) {
     els.remainingText.textContent = 'No guesses remaining';
   } else {
-    els.remainingText.textContent = `${remaining} ${remaining === 1 ? 'guess' : 'guesses'} remaining`;
+    els.remainingText.textContent = remainingLabel;
   }
 }
 
