@@ -7,7 +7,7 @@
   node_bundler = "esbuild"
 
 [functions."refresh-data"]
-  schedule = "17 7 * * *"
+  schedule = "17 7 * * 1,4"
 
 [[headers]]
   for = "/*"
